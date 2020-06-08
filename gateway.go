@@ -32,7 +32,7 @@ func ListenAndServe(addr string, h http.Handler) error {
 			return []byte{}, err
 		}
 
-		w := NewResponse()
+		w := NewResponseWithVersion(apiGWEvent.Version)
 		h.ServeHTTP(w, r)
 
 		resp := w.End()

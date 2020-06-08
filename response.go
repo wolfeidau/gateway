@@ -13,7 +13,8 @@ import (
 // ResponseWriter implements the http.ResponseWriter interface
 // in order to support the API Gateway Lambda HTTP "protocol".
 type ResponseWriter struct {
-	out           events.APIGatewayProxyResponse
+	version       string
+	out           events.APIGatewayV2HTTPResponse
 	buf           bytes.Buffer
 	header        http.Header
 	wroteHeader   bool
@@ -23,6 +24,15 @@ type ResponseWriter struct {
 // NewResponse returns a new response writer to capture http output.
 func NewResponse() *ResponseWriter {
 	return &ResponseWriter{
+		version:       "1.0",
+		closeNotifyCh: make(chan bool, 1),
+	}
+}
+
+// NewResponse returns a new response writer to capture http output.
+func NewResponseWithVersion(version string) *ResponseWriter {
+	return &ResponseWriter{
+		version:       version,
 		closeNotifyCh: make(chan bool, 1),
 	}
 }
@@ -79,13 +89,21 @@ func (w *ResponseWriter) CloseNotify() <-chan bool {
 }
 
 // End the request.
-func (w *ResponseWriter) End() events.APIGatewayProxyResponse {
+func (w *ResponseWriter) End() events.APIGatewayV2HTTPResponse {
 	w.out.IsBase64Encoded = isBinary(w.header)
 
 	if w.out.IsBase64Encoded {
 		w.out.Body = base64.StdEncoding.EncodeToString(w.buf.Bytes())
 	} else {
 		w.out.Body = w.buf.String()
+	}
+
+	// only extracting cookies for 2.0 requests as there was a workaround used for
+	// 1.0 requests which I don't want to break
+	// see https://aws.amazon.com/blogs/compute/simply-serverless-using-aws-lambda-to-expose-custom-cookies-with-api-gateway/
+	if w.version == "2.0" {
+		w.out.Cookies = w.header["Set-Cookie"]
+		w.header.Del("Set-Cookie")
 	}
 
 	// notify end
@@ -118,7 +136,7 @@ func isTextMime(kind string) bool {
 	}
 
 	switch mt {
-	case "image/svg+xml", "application/json", "application/xml","application/javascript":
+	case "image/svg+xml", "application/json", "application/xml", "application/javascript":
 		return true
 	default:
 		return false
