@@ -9,12 +9,12 @@ import (
 	"github.com/tj/assert"
 )
 
-func TestNewRequest_path(t *testing.T) {
+func TestDecodeV1Request_path(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		Path: "/pets/luna",
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "GET", r.Method)
@@ -22,19 +22,19 @@ func TestNewRequest_path(t *testing.T) {
 	assert.Equal(t, `/pets/luna`, r.URL.String())
 }
 
-func TestNewRequest_method(t *testing.T) {
+func TestDecodeV1Request_method(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		HTTPMethod: "DELETE",
 		Path:       "/pets/luna",
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "DELETE", r.Method)
 }
 
-func TestNewRequest_queryString(t *testing.T) {
+func TestDecodeV1Request_queryString(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		HTTPMethod: "GET",
 		Path:       "/pets",
@@ -44,14 +44,14 @@ func TestNewRequest_queryString(t *testing.T) {
 		},
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	assert.Equal(t, `/pets?fields=name%2Cspecies&order=desc`, r.URL.String())
 	assert.Equal(t, `desc`, r.URL.Query().Get("order"))
 }
 
-func TestNewRequest_multiValueQueryString(t *testing.T) {
+func TestDecodeV1Request_multiValueQueryString(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		HTTPMethod: "GET",
 		Path:       "/pets",
@@ -65,7 +65,7 @@ func TestNewRequest_multiValueQueryString(t *testing.T) {
 		},
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	assert.Equal(t, `/pets?fields=name%2Cspecies&multi_arr%5B%5D=arr1&multi_arr%5B%5D=arr2&multi_fields=name&multi_fields=species&order=desc`, r.URL.String())
@@ -73,7 +73,7 @@ func TestNewRequest_multiValueQueryString(t *testing.T) {
 	assert.Equal(t, []string{"arr1", "arr2"}, r.URL.Query()["multi_arr[]"])
 }
 
-func TestNewRequest_remoteAddr(t *testing.T) {
+func TestDecodeV1Request_remoteAddr(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		HTTPMethod: "GET",
 		Path:       "/pets",
@@ -84,13 +84,13 @@ func TestNewRequest_remoteAddr(t *testing.T) {
 		},
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	assert.Equal(t, `1.2.3.4`, r.RemoteAddr)
 }
 
-func TestNewRequest_header(t *testing.T) {
+func TestDecodeV1Request_header(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		HTTPMethod: "POST",
 		Path:       "/pets",
@@ -106,7 +106,7 @@ func TestNewRequest_header(t *testing.T) {
 		},
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	assert.Equal(t, `example.com`, r.Host)
@@ -117,7 +117,7 @@ func TestNewRequest_header(t *testing.T) {
 	assert.Equal(t, `bar`, r.Header.Get("X-Foo"))
 }
 
-func TestNewRequest_multiHeader(t *testing.T) {
+func TestDecodeV1Request_multiHeader(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		HTTPMethod: "POST",
 		Path:       "/pets",
@@ -137,7 +137,7 @@ func TestNewRequest_multiHeader(t *testing.T) {
 		},
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	assert.Equal(t, `example.com`, r.Host)
@@ -150,14 +150,14 @@ func TestNewRequest_multiHeader(t *testing.T) {
 	assert.Equal(t, []string{"apex-1", "apex-2"}, r.Header["X-APEX-2"])
 }
 
-func TestNewRequest_body(t *testing.T) {
+func TestDecodeV1Request_body(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		HTTPMethod: "POST",
 		Path:       "/pets",
 		Body:       `{ "name": "Tobi" }`,
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	b, err := ioutil.ReadAll(r.Body)
@@ -166,7 +166,7 @@ func TestNewRequest_body(t *testing.T) {
 	assert.Equal(t, `{ "name": "Tobi" }`, string(b))
 }
 
-func TestNewRequest_bodyBinary(t *testing.T) {
+func TestDecodeV1Request_bodyBinary(t *testing.T) {
 	e := events.APIGatewayProxyRequest{
 		HTTPMethod:      "POST",
 		Path:            "/pets",
@@ -174,7 +174,7 @@ func TestNewRequest_bodyBinary(t *testing.T) {
 		IsBase64Encoded: true,
 	}
 
-	r, err := NewRequest(context.Background(), e)
+	r, err := decodeV1Request(context.Background(), e)
 	assert.NoError(t, err)
 
 	b, err := ioutil.ReadAll(r.Body)
@@ -183,10 +183,10 @@ func TestNewRequest_bodyBinary(t *testing.T) {
 	assert.Equal(t, "hello world\n", string(b))
 }
 
-func TestNewRequest_context(t *testing.T) {
+func TestDecodeV1Request_context(t *testing.T) {
 	e := events.APIGatewayProxyRequest{}
 	ctx := context.WithValue(context.Background(), "key", "value")
-	r, err := NewRequest(ctx, e)
+	r, err := decodeV1Request(ctx, e)
 	assert.NoError(t, err)
 	v := r.Context().Value("key")
 	assert.Equal(t, "value", v)

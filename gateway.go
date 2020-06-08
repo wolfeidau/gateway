@@ -3,9 +3,9 @@ package gateway
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 )
 
@@ -18,16 +18,39 @@ func ListenAndServe(addr string, h http.Handler) error {
 		h = http.DefaultServeMux
 	}
 
-	lambda.Start(func(ctx context.Context, e events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-		r, err := NewRequest(ctx, e)
+	lambda.StartHandler(handlerFunc(func(ctx context.Context, payload []byte) ([]byte, error) {
+		apiGWEvent := struct {
+			Version string `json:"version"`
+		}{}
+
+		if err := json.Unmarshal(payload, &apiGWEvent); err != nil {
+			return []byte{}, err
+		}
+
+		r, err := NewRequest(ctx, apiGWEvent.Version, payload)
 		if err != nil {
-			return events.APIGatewayProxyResponse{}, err
+			return []byte{}, err
 		}
 
 		w := NewResponse()
 		h.ServeHTTP(w, r)
-		return w.End(), nil
-	})
+
+		resp := w.End()
+
+		return json.Marshal(&resp)
+
+	}))
 
 	return nil
+}
+
+// The HandlerFunc type is an adapter to allow the use of
+// ordinary functions as Lambda Handlers. If f is a function
+// with the appropriate signature, HandlerFunc(f) is a
+// Handler that calls f.
+type handlerFunc func(ctx context.Context, payload []byte) ([]byte, error)
+
+// Invoke calls f(ctx, payload).
+func (f handlerFunc) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
+	return f(ctx, payload)
 }
