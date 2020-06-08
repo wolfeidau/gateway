@@ -18,39 +18,43 @@ func ListenAndServe(addr string, h http.Handler) error {
 		h = http.DefaultServeMux
 	}
 
-	lambda.StartHandler(handlerFunc(func(ctx context.Context, payload []byte) ([]byte, error) {
-		apiGWEvent := struct {
-			Version string `json:"version"`
-		}{}
+	gw := NewGateway(h)
 
-		if err := json.Unmarshal(payload, &apiGWEvent); err != nil {
-			return []byte{}, err
-		}
-
-		r, err := NewRequest(ctx, apiGWEvent.Version, payload)
-		if err != nil {
-			return []byte{}, err
-		}
-
-		w := NewResponseWithVersion(apiGWEvent.Version)
-		h.ServeHTTP(w, r)
-
-		resp := w.End()
-
-		return json.Marshal(&resp)
-
-	}))
+	lambda.StartHandler(gw)
 
 	return nil
 }
 
-// The HandlerFunc type is an adapter to allow the use of
-// ordinary functions as Lambda Handlers. If f is a function
-// with the appropriate signature, HandlerFunc(f) is a
-// Handler that calls f.
-type handlerFunc func(ctx context.Context, payload []byte) ([]byte, error)
+// NewGateway creates a gateway using the provided http.Handler enabling use in existing aws-lambda-go
+// projects
+func NewGateway(h http.Handler) *Gateway {
+	return &Gateway{h: h}
+}
 
-// Invoke calls f(ctx, payload).
-func (f handlerFunc) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
-	return f(ctx, payload)
+// Gateway wrap a http handler to enable use as a lambda.Handler
+type Gateway struct {
+	h http.Handler
+}
+
+// Invoke Handler implementation
+func (gw *Gateway) Invoke(ctx context.Context, payload []byte) ([]byte, error) {
+	apiGWEvent := struct {
+		Version string `json:"version"`
+	}{}
+
+	if err := json.Unmarshal(payload, &apiGWEvent); err != nil {
+		return []byte{}, err
+	}
+
+	r, err := NewRequest(ctx, apiGWEvent.Version, payload)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	w := NewResponseWithVersion(apiGWEvent.Version)
+	gw.h.ServeHTTP(w, r)
+
+	resp := w.End()
+
+	return json.Marshal(&resp)
 }

@@ -26,13 +26,13 @@ func RequestContext(ctx context.Context) (events.APIGatewayProxyRequestContext, 
 	return c, ok
 }
 
-// RequestContext returns the APIGatewayProxyRequestContext value stored in ctx.
+// RequestV2Context returns the APIGatewayV2HTTPRequestContext value stored in ctx.
 func RequestV2Context(ctx context.Context) (events.APIGatewayV2HTTPRequestContext, bool) {
 	c, ok := ctx.Value(requestContextKeyV2).(events.APIGatewayV2HTTPRequestContext)
 	return c, ok
 }
 
-// newContext returns a new Context with specific api gateway proxy values.
+// newV2Context returns a new Context with specific api gateway v2 values.
 func newV2Context(ctx context.Context, e events.APIGatewayV2HTTPRequest) context.Context {
 	return context.WithValue(ctx, requestContextKeyV2, e.RequestContext)
 }
