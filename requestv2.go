@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/aws/aws-lambda-go/events"
-	"github.com/pkg/errors"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/aws/aws-lambda-go/events"
+	"github.com/pkg/errors"
 )
 
 // NewRequest returns a new http.Request from the given Lambda event.
@@ -46,7 +47,9 @@ func decodeV2Request(ctx context.Context, e events.APIGatewayV2HTTPRequest) (*ht
 
 	// header fields
 	for k, values := range e.Headers {
-		req.Header[k] = strings.Split(values, ",")
+		for _, v := range strings.Split(values, ",") {
+			req.Header.Add(k, v)
+		}
 	}
 
 	// content-length
